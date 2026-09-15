@@ -1,0 +1,9 @@
+reporting_bank,receiving_bank,transaction_id,customer_ref,amount,currency,merchant,payment_rail,device_status,password_reset_within_1h,ip_country_changed,vpn_proxy_tor,transfers_5m,transfers_1h,beneficiary_age_minutes,beneficiary_risk_score,prior_fraud_link,mule_network_distance,known_beneficiary,trusted_device,mfa_result,bank_flag_source
+NCBA,KCB,TX-CSV-1001,*8622,"KES 1,200,000",KES,Instant Paybill,mobile_transfer,new_device,true,true,false,6,11,8,88,true,1,false,false,passed,AG Screener
+KCB,Equity,TX-CSV-1002,*A5f6,"KES 740,000",KES,Agency Banking,bank_transfer,new_device,false,false,true,5,8,25,81,false,2,false,false,passed,AG Screener
+Equity,I&M,TX-CSV-1003,*1048,"KES 317,200",KES,Vendor Invoice,invoice_payment,,false,false,false,1,2,20,76,true,,false,true,passed,AG Screener
+I&M,NCBA,TX-CSV-1004,*B7c1,"USD 4,900",USD,International Remittance,remittance,new_device,false,true,true,3,6,45,72,false,,false,false,passed,AG Screener
+NCBA,Equity,TX-CSV-1005,*5390,"KES 18,000",KES,School Fees Portal,bill_payment,,false,false,false,1,1,900,12,false,,true,true,passed,AG Screener
+KCB,I&M,TX-CSV-1006,*D8e4,"KES 2,150,000",KES,Real Estate Deposit,bank_transfer,new_device,true,false,false,2,4,12,91,true,1,false,false,failed,AG Screener
+Equity,NCBA,TX-CSV-1007,*7205,"KES 95,000",KES,Nairobi Fuel,card_payment,,false,false,false,1,1,500,8,false,,true,true,passed,AG Screener
+I&M,KCB,TX-CSV-1008,*F3a9,"USD 2,740",USD,Crypto Gateway,crypto,new_device,false,true,true,4,7,30,85,false,,false,false,passed,AG Screener
