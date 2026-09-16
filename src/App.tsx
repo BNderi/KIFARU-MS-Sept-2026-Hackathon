@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { validateCsv } from "./api";
-import { initialBanks } from "./data";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { loadDashboardData, updateInstitutionThreshold, validateCsv } from "./api";
+import { initialBanks, riskCodeCatalog } from "./data";
 import {
   counterpartyBankId, displayTransactionId, isVisible, moneyDirection, reportingBankId,
-  transactionDirection, transactionFromValidation, validationLabel,
+  transactionDirection,
 } from "./domain";
-import type { Outcome, Role, Tab, Transaction, UploadSummary } from "./types";
+import type { KnowledgeBaseEntry, Role, RiskCodeReference, Tab, Transaction, UploadSummary } from "./types";
 import { Logo } from "./components/Shared";
 import { Investigation, TransactionTable } from "./components/Transactions";
 import { Reports } from "./components/Reports";
@@ -26,11 +26,14 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
+  const [riskCodes, setRiskCodes] = useState<RiskCodeReference[]>(riskCodeCatalog);
+  const [knowledgeBaseEntries, setKnowledgeBaseEntries] = useState<KnowledgeBaseEntry[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [dataError, setDataError] = useState("");
   const uploadController = useRef<AbortController | null>(null);
+  const dataController = useRef<AbortController | null>(null);
   const bank = banks.find((item) => item.id === bankId)!;
   const bankName = (id: string) => id === "external" ? "External network" : banks.find((item) => item.id === id)?.name ?? id;
-  const bankIdFromName = (name: string) => banks.find((item) => item.name.toLowerCase() === name.trim().toLowerCase())?.id
-    ?? (name.trim().toLowerCase() === "external" ? "external" : `unknown:${name.trim().toLowerCase()}`);
   const records = transactions.filter((item) => isVisible(item, bankId));
   const selected = records.find((item) => item.key === selectedKey);
   const submitted = records.filter((item) => reportingBankId(item) === bankId).length;
@@ -49,7 +52,38 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  useEffect(() => () => uploadController.current?.abort(), []);
+  const refreshData = useCallback(async (showLoading = true) => {
+    const controller = new AbortController();
+    dataController.current?.abort();
+    dataController.current = controller;
+    if (showLoading) setLoadingData(true);
+    setDataError("");
+    try {
+      const data = await loadDashboardData(initialBanks, controller.signal);
+      setBanks(data.banks);
+      setTransactions(data.transactions);
+      setRiskCodes(data.riskCodes);
+      setKnowledgeBaseEntries(data.knowledgeBaseEntries);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setDataError(error instanceof Error ? error.message : "Unable to load backend data.");
+      }
+      throw error;
+    } finally {
+      if (dataController.current === controller) {
+        setLoadingData(false);
+        dataController.current = null;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshData().catch(() => undefined);
+    return () => {
+      uploadController.current?.abort();
+      dataController.current?.abort();
+    };
+  }, [refreshData]);
 
   function login(nextRole: Role) {
     setRole(nextRole);
@@ -66,31 +100,6 @@ export default function App() {
     setToast(`${bankName(id)} session loaded.`);
   }
 
-  function simulate(status: Outcome) {
-    const isFraud = status === "validated_fraud";
-    const key = crypto.randomUUID();
-    const transaction: Transaction = {
-      key,
-      id: `${bank.shortName}-${key.slice(0, 8)}`,
-      sourceBank: bank.id,
-      destinationBank: "external",
-      customerRef: isFraud ? "*9901" : "*C774",
-      merchant: isFraud ? "Cross-border transfer" : "Digital wallet cash-out",
-      country: isFraud ? "Unknown route" : "Kenya",
-      amount: isFraud ? "KES 2,392,000" : "USD 2,740",
-      score: isFraud ? 97 : 78,
-      flagSource: isFraud ? "Kifaru agent" : "AG Screener",
-      validationStatus: status,
-      riskCode: { code: "DEV-403", label: "Device or auth anomaly" },
-      evidence: isFraud
-        ? ["Credential stuffing signal", "High-risk beneficiary", "Behavior pattern drift"]
-        : ["Wallet reputation warning", "Recent device change", "Below Kifaru validation threshold"],
-      action: isFraud ? "Demo: validated fraud; receiving-bank alert simulated." : "Demo: bank-submitted flag marked not fraud.",
-    };
-    setTransactions((current) => [transaction, ...current]);
-    setToast(`${validationLabel(status)} demo record added for ${bank.name}.`);
-  }
-
   async function upload(file: File) {
     const controller = new AbortController();
     uploadController.current?.abort();
@@ -100,11 +109,9 @@ export default function App() {
     setUploadSummary(null);
     try {
       const payload = await validateCsv(await file.text(), controller.signal);
-      const incoming = payload.validations.map((validation) =>
-        transactionFromValidation(validation, bankIdFromName, crypto.randomUUID()));
-      setTransactions((current) => [...incoming, ...current]);
+      await refreshData(false);
       setUploadSummary(payload.summary);
-      setToast(`${payload.summary.total_rows} CSV log rows validated.`);
+      setToast(`${payload.summary.total_rows} CSV rows validated and loaded from the backend.`);
     } catch (error) {
       if (!controller.signal.aborted) {
         setUploadError(error instanceof Error ? error.message : "CSV upload failed.");
@@ -123,6 +130,11 @@ export default function App() {
       <p>This prototype uses button-based login. Admin users can view SOC connection details,
         governance controls, metrics, and knowledge-base sources. Employees can access flagged transactions
         and operational fraud guidance. This is a demo, not production authentication.</p>
+      <p className="muted" role={dataError ? "alert" : undefined}>
+        {loadingData ? "Connecting to the Kifaru backend..."
+          : dataError ? `Backend unavailable: ${dataError}`
+            : `${transactions.length} persisted validation records loaded.`}
+      </p>
       <div className="role-grid">
         <button className="role-card" onClick={() => login("admin")}><strong>Admin</strong><span>Full tenant operations, SOC connection details, model governance, thresholds, and knowledge base.</span></button>
         <button className="role-card" onClick={() => login("employee")}><strong>Employee</strong><span>Received alerts, submitted flags, investigation details, and fraud playbooks.</span></button>
@@ -184,19 +196,21 @@ export default function App() {
             {!uploading && !uploadError && !uploadSummary && <span className="muted">Validation API: /api</span>}
           </div>
         </div>
-        {role === "admin" && <div className="side-panel"><span className="pill clear">SOC link (demo)</span><p>{bank.soc}</p></div>}
+        {role === "admin" && <div className="side-panel"><span className="pill clear">Connector profile</span><p>{bank.soc}</p></div>}
       </aside>
       <main className="main">
         <section className="topbar"><div>
-          <p className="eyebrow">Command dashboard prototype</p><h2>Kifaru - {bank.name}</h2>
+          <p className="eyebrow">Live validation dashboard</p><h2>Kifaru - {bank.name}</h2>
           <p className="muted">Logged in as {bank.users}. View submitted fraud flags, validation results, received alerts, and related history.</p>
+          {dataError && <p className="muted" role="alert">Backend unavailable: {dataError}</p>}
         </div><div className="actions">
           <span className="pill">{role === "admin" ? "Admin login" : "Employee login"}</span>
           <button className="btn" onClick={() => {
             document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
           }}>Toggle theme</button>
-          <button className="btn" onClick={() => simulate("not_fraud")}>Simulate not fraud</button>
-          <button className="btn primary" onClick={() => simulate("validated_fraud")}>Submit fraud flag (demo)</button>
+          <button className="btn primary" disabled={loadingData} onClick={() => void refreshData().then(() => {
+            setToast("Backend data refreshed.");
+          }).catch(() => undefined)}>{loadingData ? "Loading..." : "Refresh data"}</button>
           <button className="btn" onClick={() => {
             uploadController.current?.abort();
             setRole(null);
@@ -205,7 +219,7 @@ export default function App() {
           }}>Log out</button>
         </div></section>
         <section className="grid metrics">{metrics.map((metric) =>
-          <div className="metric" key={metric.label}><div className="metric-label"><span>{metric.label}</span><span>Session</span></div>
+          <div className="metric" key={metric.label}><div className="metric-label"><span>{metric.label}</span><span>Backend</span></div>
             <div className="metric-value">{metric.value}</div><div className="metric-detail">{metric.detail}</div>
           </div>,
         )}</section>
@@ -229,22 +243,15 @@ export default function App() {
             bank={bank} bankName={bankName} history={tab === "history"} onOpen={setSelectedKey} />
         </>}
         {tab === "reports" && <Reports records={records} bank={bank} view={reportView} onView={setReportView} />}
-        {tab === "knowledge" && <KnowledgeBase bank={bank} />}
-        {tab === "admin" && role === "admin" && <AdminDetails bank={bank} notify={setToast} onChange={(updated) => setBanks((current) => current.map((item) => item.id === updated.id ? updated : item))} />}
+        {tab === "knowledge" && <KnowledgeBase bank={bank} entries={knowledgeBaseEntries} riskCodes={riskCodes} />}
+        {tab === "admin" && role === "admin" && <AdminDetails bank={bank} notify={setToast}
+          onThresholdChange={async (threshold) => {
+            await updateInstitutionThreshold(bank.backendCode, threshold);
+            await refreshData(false);
+          }} />}
       </main>
     </div>
-    {selected && <Investigation transaction={selected} bank={bank} bankName={bankName} onClose={() => setSelectedKey(null)}
-      onMark={() => {
-        setTransactions((current) => current.map((item) => item.key === selected.key
-          ? { ...item, validationStatus: "not_fraud", score: Math.min(item.score, 31), action: "Marked not fraud in this demo session." }
-          : item));
-        setSelectedKey(null);
-        setToast(`${displayTransactionId(selected, bank.name)} marked not fraud (session only).`);
-      }}
-      onAlert={() => {
-        setToast(`Demo bank alert for ${displayTransactionId(selected, bank.name)}. No external alert sent.`);
-        setSelectedKey(null);
-      }} />}
+    {selected && <Investigation transaction={selected} bank={bank} bankName={bankName} onClose={() => setSelectedKey(null)} />}
     <div className={`toast ${toast ? "show" : ""}`} role="status" aria-live="polite">{toast}</div>
   </>;
 }
