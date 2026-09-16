@@ -10,6 +10,7 @@ export interface Source {
 }
 export interface Bank {
   id: string;
+  backendCode: string;
   name: string;
   region: string;
   users: string;
@@ -57,4 +58,22 @@ export interface UploadSummary {
   not_fraud: number;
   needs_review: number;
   top_risk_codes: { code: string; count: number }[];
+}
+export interface RiskCodeReference {
+  code: string;
+  label: string;
+  text: string;
+}
+export interface KnowledgeBaseEntry {
+  artefactHash: string;
+  listName: string;
+  label: string;
+  addedBy: string;
+  addedAt: string;
+}
+export interface DashboardData {
+  banks: Bank[];
+  transactions: Transaction[];
+  riskCodes: RiskCodeReference[];
+  knowledgeBaseEntries: KnowledgeBaseEntry[];
 }

@@ -3,6 +3,7 @@ import type { Bank } from "./types";
 export const initialBanks: Bank[] = [
       {
         id: "ncba",
+        backendCode: "bank_a",
         name: "NCBA",
         region: "Kenya",
         users: "SOC-1 analysts",
@@ -25,6 +26,7 @@ export const initialBanks: Bank[] = [
       },
       {
         id: "kcb",
+        backendCode: "bank_b",
         name: "KCB",
         region: "East Africa",
         users: "Fraud ops team",
@@ -47,6 +49,7 @@ export const initialBanks: Bank[] = [
       },
       {
         id: "equity",
+        backendCode: "psp_c",
         name: "Equity",
         region: "Pan-African banking",
         users: "Managed SOC",
@@ -69,6 +72,7 @@ export const initialBanks: Bank[] = [
       },
       {
         id: "im",
+        backendCode: "sacco_d",
         name: "I&M",
         region: "Kenya and regional subsidiaries",
         users: "Digital risk team",

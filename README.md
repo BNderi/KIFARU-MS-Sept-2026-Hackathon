@@ -14,16 +14,18 @@ npm run dev
 Open `http://127.0.0.1:5173`. In another terminal, start the validation API:
 
 ```bash
-npm run backend
+python -m pip install -r backend/requirements.txt
+npm run server
 ```
 
-Vite forwards `/api/*` requests to the backend at `http://127.0.0.1:3000`.
-Choose Admin or Employee, then upload `backend/sample-logs.csv` to populate
-the dashboard. Use the institution buttons to see each bank's related records.
-The dashboard starts empty, matching the original prototype.
+Vite forwards `/api/*` requests to the backend at `http://127.0.0.1:8000`.
+Choose Admin or Employee, then upload `backend/data/kifaru_events.csv` to populate
+additional records. The dashboard loads persisted backend history, institutions,
+thresholds, risk codes, and knowledge-base entries on startup. Use the institution
+buttons to see each bank's related records.
 
 The React app preserves role views, bank switching, search/outcome filters,
-reports and risk-code drilldowns, investigation actions, knowledge-base content,
+reports and risk-code drilldowns, read-only investigations, knowledge-base content,
 admin settings, theme switching, and the collapsible sidebar.
 Use `?clawpilotTheme=dark` or `?clawpilotTheme=light` to select the initial theme;
 otherwise it follows the system preference.
@@ -32,10 +34,9 @@ otherwise it follows the system preference.
 
 CSV uploads call the real prototype API. Role selection is not authentication,
 and bank filtering is client-side, not an authorization boundary. Connector
-status, source actions, thresholds, fraud simulation, and bank alert actions
-are demo-only; they do not modify external systems or backend scoring policy.
-Marking a case not fraud changes only the current browser session.
-Frontend records and settings reset on refresh; backend data is also in memory.
+inventory is illustrative and does not contact external systems. Institution
+threshold changes are persisted by the backend.
+Backend records and institution thresholds persist in SQLite and reload on refresh.
 Production use requires server-side authentication, tenant authorization,
 durable storage, and real action endpoints.
 
@@ -44,7 +45,7 @@ durable storage, and real action endpoints.
 ```bash
 npm run build
 npm test
-npm test --prefix backend
+python -m compileall -q backend/app backend/scripts
 npm run preview
 ```
 
@@ -63,8 +64,10 @@ own `/api` reverse proxy. Node 22.18+ (22.x) or Node 24+ is required.
 ## Run the backend
 
 ```bash
-cd backend
-npm start
+python -m pip install -r backend/requirements.txt
+npm run server
 ```
 
-Then open `http://127.0.0.1:3000/health`.
+Then open `http://127.0.0.1:8000/health` or `http://127.0.0.1:8000/docs`.
+The backend's full usage, replay, scoring, and API documentation is in
+`backend/README.md`.

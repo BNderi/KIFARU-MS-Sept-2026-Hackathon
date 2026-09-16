@@ -29,9 +29,9 @@ export function TransactionTable({ records, bank, bankName, history, title, subt
   </div></Card>;
 }
 
-export function Investigation({ transaction, bank, bankName, onClose, onMark, onAlert }: {
+export function Investigation({ transaction, bank, bankName, onClose }: {
   transaction: Transaction; bank: Bank; bankName: (id: string) => string;
-  onClose: () => void; onMark: () => void; onAlert: () => void;
+  onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -64,12 +64,10 @@ export function Investigation({ transaction, bank, bankName, onClose, onMark, on
       </div>
       <div className="drawer-body"><div className="detail-list">{details.map(([label, value]) =>
         <div className="detail-row" key={label}><span>{label}</span><b>{value}</b></div>,
-      )}</div></div>
+      )}</div>      </div>
       <div className="drawer-foot">
-        <p className="muted">Demo actions only; backend records are not changed.</p>
+        <p className="muted">Read-only record loaded from the shared Kifaru backend.</p>
         <button className="btn" onClick={onClose} autoFocus>Close</button>
-        <button className="btn" onClick={onMark}>Mark not fraud</button>
-        <button className="btn primary" onClick={onAlert}>Simulate bank alert</button>
       </div>
     </div>
   </dialog>;
